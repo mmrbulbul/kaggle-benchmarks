@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 import contextlib
 import json
 import logging
@@ -33,7 +33,7 @@ def save_proto(message: Any, path: Path):
 class KaggleClient(clients.Client):
     def __init__(
         self,
-        directory: str | Path = ".",
+        directory: str | Path = "./benchmark_results",
         format: str = "json",
         use_cache: bool = False,
     ):
@@ -41,6 +41,7 @@ class KaggleClient(clients.Client):
         self.registry: dict[str, tasks.Task] = {}
         self.format = format
         self.use_cache = use_cache
+        os.makedirs(self.directory, exist_ok=True)
 
     def run_task(
         self, task: tasks.Task, grid: dict[str, Any], evaluation_data
