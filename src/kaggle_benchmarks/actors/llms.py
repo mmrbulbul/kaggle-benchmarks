@@ -107,10 +107,17 @@ T = TypeVar("T")
 # TODO: Figure out a more robust way to handle extra fields.
 def _extract_extra_usage_metadata(usage: Any) -> dict[str, Any]:
     """Extracts cost metadata from a usage object augmented by Model Proxy."""
-    cost = getattr(usage, "cost", None) or {}
+    cost = getattr(usage, "cost", None)
+    # Handle case where cost is a float (e.g., from OpenRouter) instead of a dict
+    if isinstance(cost, dict):
+        input_cost = cost.get("input_tokens_cost_nanodollars")
+        output_cost = cost.get("output_tokens_cost_nanodollars")
+    else:
+        input_cost = None
+        output_cost = None
     return {
-        "input_tokens_cost_nanodollars": cost.get("input_tokens_cost_nanodollars"),
-        "output_tokens_cost_nanodollars": cost.get("output_tokens_cost_nanodollars"),
+        "input_tokens_cost_nanodollars": input_cost,
+        "output_tokens_cost_nanodollars": output_cost,
         "total_backend_latency_ms": getattr(usage, "total_backend_latency_ms", None),
     }
 
@@ -344,7 +351,7 @@ class OpenAI(LLMChat):
                     }
                 )
             else:
-                method = self.client.beta.chat.completions.parse
+                method = self.client.chat.completions.parse
         else:
             if self.stream_responses:
                 kwargs["stream"] = True
@@ -359,6 +366,12 @@ class OpenAI(LLMChat):
 
         if isinstance(response, openai.Stream):
             return self._get_stream_response(response)
+        elif isinstance(response, str):
+            # Handle case where response is a string (e.g., from OpenRouter)
+            return LLMResponse(
+                content=response,
+                meta={},
+            )
         else:
             message = response.choices[0].message
             tool_calls = message.tool_calls
